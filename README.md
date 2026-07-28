@@ -44,11 +44,11 @@ After a successful build, binaries are placed under `./bin`.
 
 ```bash
 # Flash load
-./bin/si479xx_radio
+./bin/si479x_radio
 
 # Host load (firmwarefolder contains si479x.bin and key_exch.key,
 # key_exch.key is only required for si47925)
-./bin/si479xx_radio ./firmwarefolder
+./bin/si479x_radio ./radio/firmware/si4796x/
 ```
 
 ### 4. Burn / Dump SPI Flash Firmware
