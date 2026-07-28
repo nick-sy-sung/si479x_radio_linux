@@ -27,6 +27,7 @@ uint8_t si479x_chip_id;
 #include <sys/ioctl.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
+#include <linux/gpio.h>
 
 void sleep_us(uint16_t us)
 {
@@ -40,101 +41,74 @@ void sleep_ms(uint16_t ms)
 }
 
 
-#define SYSFS_GPIO_EXPORT           "/sys/class/gpio/export"  
-#define SYSFS_GPIO_RST_DIR          "/sys/class/gpio/gpio%s/direction"
-#define SYSFS_GPIO_RST_DIR_VAL      "out"  
-#define SYSFS_GPIO_RST_VAL          "/sys/class/gpio/gpio%s/value"
-#define SYSFS_GPIO_RST_VAL_H        "1"
-#define SYSFS_GPIO_RST_VAL_L        "0"
-#define SYSFS_GPIO_UNEXPORT          "/sys/class/gpio/unexport"  
+/*
+ * GPIO character device (chardev) that owns the Si479xx hard reset lines.
+ * On Raspberry Pi 5 the 40-pin header GPIOs live on the RP1 controller,
+ * which enumerates as /dev/gpiochip0 on recent kernels (older RPi5 kernels
+ * used /dev/gpiochip4). Adjust here if your kernel enumerates it differently.
+ */
+#define GPIO_CHIP_DEV       "/dev/gpiochip0"
+#define GPIO_CONSUMER       "si479x_radio"
 
-int gpio_reset(const char* gpio_id)
+/* Si479xx hard reset lines (BCM GPIO offsets on the 40-pin header) */
+#define SI479X_CHIP0_RESET  17
+#define SI479X_CHIP1_RESET  27
+
+static int gpio_reset(unsigned int offset)
 {
-    	int fd; 
-		int ret;
-		char path[256];
+	int chip_fd;
+	int ret;
+	struct gpiohandle_request req;
+	struct gpiohandle_data data;
 
-		sprintf(path, "/sys/class/gpio/gpio%s/direction", gpio_id);
-        fd = open(path, O_WRONLY);
-        if(fd == -1)
-        {
-			fd = open(SYSFS_GPIO_EXPORT, O_WRONLY);
-			if(fd == -1)
-			{
-					   printf("ERR: Open %s failed.\n", SYSFS_GPIO_EXPORT);
-					   return -1;
-			}
-			ret = write(fd, gpio_id ,strlen(gpio_id)+1); 
-			if (ret == -1)
-			{
-				printf("INFO: Write %s to %s return %d.\n", gpio_id, SYSFS_GPIO_EXPORT, ret);
-				goto clean;
-			}
-		
-			usleep(100000);
-			fd = open(path, O_WRONLY);
-			if(fd == -1)
-			{
-				printf("ERR: Open %s failed.\n", path);
-				return-1;
-			}
-        }
-		
-        ret = write(fd, SYSFS_GPIO_RST_DIR_VAL, sizeof(SYSFS_GPIO_RST_DIR_VAL)); 
-		if (ret == -1)
-		{
-			printf("INFO: Write %s to %s return %d.\n", SYSFS_GPIO_RST_DIR_VAL, path, ret);
-			goto clean;
-		}
+	chip_fd = open(GPIO_CHIP_DEV, O_RDONLY);
+	if (chip_fd < 0)
+	{
+		printf("ERR: Open %s failed.\n", GPIO_CHIP_DEV);
+		return -1;
+	}
 
-		sprintf(path, "/sys/class/gpio/gpio%s/value", gpio_id);
-        fd = open(path, O_RDWR);
-        if(fd == -1)
-        {
-                  printf("ERR: SOpen %s failed.\n.", path);
-                  return -1;
-        }       
-                  
-		ret = write(fd, SYSFS_GPIO_RST_VAL_L, sizeof(SYSFS_GPIO_RST_VAL_L));
-		if (ret == -1)
-		{
-			printf("INFO: Write %s to %s return %d.\n", SYSFS_GPIO_RST_VAL_L, path, ret);
-			goto clean;
-		}
-        usleep(2000);
-		
-        ret = write(fd, SYSFS_GPIO_RST_VAL_H, sizeof(SYSFS_GPIO_RST_VAL_H));
-		if (ret == -1)
-		{
-			printf("INFO: Write %s to %s return %d.\n", SYSFS_GPIO_RST_VAL_H, path, ret);
-			goto clean;
-		}
-        usleep(5000);
+	/* request the line as an output, driven high by default */
+	memset(&req, 0, sizeof(req));
+	req.lineoffsets[0] = offset;
+	req.lines = 1;
+	req.flags = GPIOHANDLE_REQUEST_OUTPUT;
+	req.default_values[0] = 1;
+	strncpy(req.consumer_label, GPIO_CONSUMER, sizeof(req.consumer_label) - 1);
 
-clean:
-        close(fd);
-		
-		/**
-        fd = open(SYSFS_GPIO_UNEXPORT, O_WRONLY);
-        if(fd == -1)
-        {
-                   printf("ERR: Si479xx hard reset pin close error.\n");
-                   return -1;
-        }
-        ret = write(fd, gpio_id ,sizeof(gpio_id)); 
-		if (ret == -1)
-			printf("INFO: Write %s to %s return %d.\n", gpio_id, SYSFS_GPIO_UNEXPORT, ret);
-        close(fd); 
-		*/
+	ret = ioctl(chip_fd, GPIO_GET_LINEHANDLE_IOCTL, &req);
+	if (ret < 0 || req.fd < 0)
+	{
+		printf("ERR: Request gpio line %u on %s failed.\n", offset, GPIO_CHIP_DEV);
+		close(chip_fd);
+		return -1;
+	}
+
+	/* drive low, hold, then release high to generate the reset pulse */
+	data.values[0] = 0;
+	ret = ioctl(req.fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, &data);
+	if (ret < 0)
+		printf("INFO: Set gpio line %u low return %d.\n", offset, ret);
+	usleep(2000);
+
+	data.values[0] = 1;
+	ret = ioctl(req.fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, &data);
+	if (ret < 0)
+		printf("INFO: Set gpio line %u high return %d.\n", offset, ret);
+	usleep(5000);
+
+	close(req.fd);
+	close(chip_fd);
+	return 0;
 }
 
 int chips_reset()
 {
 	//chip 0
-	gpio_reset("17");
+	gpio_reset(SI479X_CHIP0_RESET);
 	
 	//chip 1
-	gpio_reset("27");
+	gpio_reset(SI479X_CHIP1_RESET);
         
 	printf("INFO: Si479xx hard reset pin.\n");
     return 0;
