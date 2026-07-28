@@ -114,7 +114,7 @@ const power_up_args_t de_powerup_args_na =
 const power_up_args_t de_powerup_args_na = 
 {
 	0, 7, 0, 1, XTAL, 8, 15, 36864000, 67, 0, 0, 0, 0, 0, 
-	2, 1, 0, 1, 0, 0, 1, 0, 1
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4
 };
 #endif
 

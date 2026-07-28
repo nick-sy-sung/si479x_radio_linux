@@ -17,6 +17,6 @@
 
 #include "general_config.h"
 
-#include "dc_config_1T.h"
+#include "dc_config_1DT.h"
 
 #endif 

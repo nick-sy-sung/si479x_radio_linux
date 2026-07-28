@@ -297,6 +297,8 @@ RET_CODE calc_biquad_coeffs_binary(FILTER_TYPE filter, double gain_db,
     return ret;
 }
 
+#ifdef SUPPORT_HIFI
+
 #ifdef SUPPORT_3X3BANDS_TONE_CONTROL	
 #define TONE_BIQUAD_CNT  3
 #define BIQUAD_PARAM_H_SZ 3
@@ -640,3 +642,5 @@ RET_CODE si479x_set_output_gain(double gain)
 	
 	return ret;
 }
+
+#endif // SUPPORT_HIFI

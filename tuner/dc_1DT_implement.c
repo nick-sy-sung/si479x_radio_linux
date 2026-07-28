@@ -93,7 +93,7 @@ RET_CODE dc_1DT_post_bootup(uint8_t band)
 	si479x_tuner_set_mode(TUNER0, band); 
 
 	//enable hifi proc
-	si479x_hifi_proc1_enable(); 
+	//si479x_hifi_proc1_enable(); 
 
 	dc_set_custom_setting(RADIO_CHIP_0);
 

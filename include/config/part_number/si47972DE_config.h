@@ -17,7 +17,7 @@
 
 #include "radio_config.h"
 
-#include "hifi_4chan_config.h"
+//#include "hifi_4chan_config.h"
 
 #ifndef SUPPORT_RDS
 #define SUPPORT_RDS ///<set this MACRO 0 when NOT need RDS feature

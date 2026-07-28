@@ -268,7 +268,13 @@ RET_CODE si479x_powerup(const power_up_args_t *pPowerup_args)
     if (pPowerup_args->IQOUT)
         cmd_buff[23] |= (pPowerup_args->IQOUT & 0x03);
 
-    ERR_CHECKING(si479x_command(24, cmd_buff, 6, rsp_buff));
+    if (pPowerup_args->EZIQ_MASTER)
+        cmd_buff[24] |= (pPowerup_args->EZIQ_MASTER & 0x01) << 4;
+
+    if (pPowerup_args->EZIQ_ENABLE)
+        cmd_buff[24] |= (pPowerup_args->EZIQ_ENABLE & 0x07);
+
+    ERR_CHECKING(si479x_command(25, cmd_buff, 6, rsp_buff));
     
     sleep_ms(5);
 

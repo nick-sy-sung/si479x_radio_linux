@@ -89,6 +89,8 @@ extern "C" {
 		uint8_t     IQSLOT;
 		uint8_t     IQEARLY;
 		uint8_t     IQOUT;
+		uint8_t     EZIQ_MASTER;
+		uint8_t     EZIQ_ENABLE;
 	}power_up_args_t;
 
 	typedef uint8_t POWERUP_STATE; enum

@@ -25,7 +25,9 @@
 #include "audio_data.h"
 
 #include "si479x_audio_api.h"
+#include "si479x_tuner.h"
 
+#ifdef SUPPORT_HIFI
 static AUDIO_SOURCE _audio_mode;
 
 i2s_config i2s_conf;
@@ -41,6 +43,7 @@ RET_CODE si479x_switch_i2s();
 RET_CODE si479x_switch_off();
 
 static RET_CODE si479x_disconnect_input_connections();
+#endif
 
 void Audio_mgr_init()
 {	
@@ -49,12 +52,15 @@ void Audio_mgr_init()
 	Audio_load_wav();
 #endif		
 
+#ifdef SUPPORT_HIFI
 	si479x_turn_audio(OFF_AUDIO);
+#endif
 }
 
 
 void Audio_switch(uint8_t mode)
 {    
+#ifdef SUPPORT_HIFI
 	if (RADIO_AUDIO == mode)
 	{
 		si479x_switch_radio();
@@ -71,6 +77,9 @@ void Audio_switch(uint8_t mode)
 	{
 		si479x_switch_off();
 	}
+#else
+	(void)mode;
+#endif
 }
 
 #ifdef SUPPORT_AUDIO_EVENT_TONE
@@ -230,9 +239,14 @@ void Audio_volume(uint8_t volume)
 {	
 	uint8_t tvolume = LIMIT(volume, 0, MAX_VOLUME);
 	
+#ifdef SUPPORT_HIFI
 	si479x_set_output_gain(volume_gains[tvolume]);
+#else
+	(void)tvolume;
+#endif
 }
 
+#ifdef SUPPORT_HIFI
 void DAC_compensate (uint8_t on)
 {
 	if (on != 0) 
@@ -247,6 +261,7 @@ void DAC_compensate (uint8_t on)
 		si479x_hifi_coeff_write(3, 16, 64, DAC_filter3_off_cmd);
 	}
 }
+#endif
 
 #ifdef SUPPORT_PRESET_EQ
 
@@ -364,6 +379,7 @@ void Audio_EQ (uint8_t id)
 #endif
 
 
+#ifdef SUPPORT_HIFI
 RET_CODE si479x_disconnect_input_connections()
 {
     RET_CODE ret = RET_SUCCESS;
@@ -559,6 +575,7 @@ RET_CODE si479x_switch_off()
     return ret;
 	
 }
+#endif // SUPPORT_HIFI
 
 
 #ifdef SUPPORT_WAV_PLAY
@@ -579,6 +596,7 @@ RET_CODE Audio_load_wav()
 #endif
 
 
+#ifdef SUPPORT_HIFI
 void Audio_Treble(double gain)
 {
 	//si479x_set_tone_treble(0, gain, 0.4, 6000);
@@ -679,5 +697,7 @@ void Audio_Bypass_Delay(int8_t onoff)
 	si479x_hifi_modify_control(HIFI_6CHAN_SUBWOF_DELAY_ID, 0, 0, value, 0x2);
 	#endif
 }
+
+#endif // SUPPORT_HIFI
 
 
