@@ -113,8 +113,14 @@ int main(int argc, char *argv[])
 	}
 	
 	//Step b. reset chipsets
-	chips_reset();
-	
+	ret = chips_reset();
+	if (si479x_waitForCTS() != RET_SUCCESS)
+	{
+		printf("Chip reset failed!\n");
+		return -1;
+	}
+	printf("Reset chip done.\n");
+
 	//Step c. host load or flash load
 	if (bootMode == 0) 
 	{
