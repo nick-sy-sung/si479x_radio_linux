@@ -53,6 +53,8 @@ void sleep_ms(uint16_t ms)
 /* Si479xx hard reset lines (BCM GPIO offsets on the 40-pin header) */
 #define SI479X_CHIP0_RESET  17
 #define SI479X_CHIP1_RESET  27
+#define SI479X_RESET_HOLD_MS 2
+#define SI479X_RESET_READY_MS 5
 
 static int gpio_reset(unsigned int offset)
 {
@@ -68,12 +70,12 @@ static int gpio_reset(unsigned int offset)
 		return -1;
 	}
 
-	/* request the line as an output, driven high by default */
+	/* request the line as an output, held low until reset is released */
 	memset(&req, 0, sizeof(req));
 	req.lineoffsets[0] = offset;
 	req.lines = 1;
 	req.flags = GPIOHANDLE_REQUEST_OUTPUT;
-	req.default_values[0] = 1;
+	req.default_values[0] = 0;
 	strncpy(req.consumer_label, GPIO_CONSUMER, sizeof(req.consumer_label) - 1);
 
 	ret = ioctl(chip_fd, GPIO_GET_LINEHANDLE_IOCTL, &req);
@@ -84,18 +86,14 @@ static int gpio_reset(unsigned int offset)
 		return -1;
 	}
 
-	/* drive low, hold, then release high to generate the reset pulse */
-	data.values[0] = 0;
-	ret = ioctl(req.fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, &data);
-	if (ret < 0)
-		printf("INFO: Set gpio line %u low return %d.\n", offset, ret);
-	usleep(2000);
+	/* hold reset low, then release high and wait until the device is ready */
+	sleep_ms(SI479X_RESET_HOLD_MS);
 
 	data.values[0] = 1;
 	ret = ioctl(req.fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, &data);
 	if (ret < 0)
 		printf("INFO: Set gpio line %u high return %d.\n", offset, ret);
-	usleep(5000);
+	sleep_ms(SI479X_RESET_READY_MS);
 
 	close(req.fd);
 	close(chip_fd);
@@ -106,9 +104,8 @@ int chips_reset()
 {
 	//chip 0
 	gpio_reset(SI479X_CHIP0_RESET);
-	
 	//chip 1
-	gpio_reset(SI479X_CHIP1_RESET);
+	//gpio_reset(SI479X_CHIP1_RESET);
         
 	printf("INFO: Si479xx hard reset pin.\n");
     return 0;
@@ -117,7 +114,7 @@ int chips_reset()
 //spi bus related parameters
 static const char *chip0_device = "/dev/spidev0.0";
 static const char *chip1_device = "/dev/spidev0.1";
-static uint8_t mode;
+static uint8_t mode = SPI_MODE_0;
 static uint8_t bits = 8;
 static uint32_t speed = 12000000;
 static uint16_t delay;
